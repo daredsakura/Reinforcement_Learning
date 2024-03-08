@@ -21,8 +21,8 @@ else:
     import tkinter as tk
 
 UNIT = 40  # pixels
-MAZE_H = 4  # grid height
-MAZE_W = 4  # grid width
+MAZE_H = 5  # grid height
+MAZE_W = 5  # grid width
 
 
 class Maze(tk.Tk, object):

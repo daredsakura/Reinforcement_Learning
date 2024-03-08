@@ -60,7 +60,7 @@ def update3():
 if __name__ == '__main__':
     # 定义环境 env 和 RL 方式
     env = Maze()
-    RL = SarsaLambdaTable(actions=list(range(env.n_actions)))
+    RL = QLearningTable(actions=list(range(env.n_actions)))
     # 开始可视化环境 env
-    env.after(100, update3)
+    env.after(100, update1)
     env.mainloop()
