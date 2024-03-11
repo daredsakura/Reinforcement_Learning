@@ -31,14 +31,15 @@ def test():
     gamma = 0.99  # discount factor
     K_epochs = 4  # update policy for K epochs
     eps_clip = 0.2  # clip parameter for PPO2
-    save_gif = True
+    save_gif = False
     random_seed = None
     #############################################
     ppo = PPO(state_dim, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip)
     memory = Memory()
     file_name = './PPO_{}.pth'.format(env_name)
-    ppo.policy.load_state_dict(file_name)
-    with torch.no_grad:
+    print(file_name)
+    ppo.policy.load_state_dict(torch.load(file_name), strict=False)
+    with torch.no_grad():
         for i_episode in range(1, max_episodes + 1, 1):
             i_reward = 0
             state = env.reset()
