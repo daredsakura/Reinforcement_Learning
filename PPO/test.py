@@ -38,22 +38,24 @@ def test():
     memory = Memory()
     file_name = './PPO_{}.pth'.format(env_name)
     ppo.policy.load_state_dict(file_name)
-    for i_episode in range(1, max_episodes + 1, 1):
-        i_reward = 0
-        state = env.reset()
-        for t in range(max_timesteps):
-            action = ppo.policy.act(state, memory)
-            state, reward, done, _ = env.step(action)
-            i_reward += reward
-            if render:
-                env.render()
-            if save_gif:
-                img = env.render(mode='rgb_array')
-                img = Image.fromarray(img)
-                img.save('./gif/{}.jpg'.format(t))
-            if done:
-                break
-        print('i_episode :{} reward={}'.format(i_episode, i_reward))
+    with torch.no_grad:
+        for i_episode in range(1, max_episodes + 1, 1):
+            i_reward = 0
+            state = env.reset()
+            for t in range(max_timesteps):
+                state = torch.from_numpy(np.array(state)).float().to(device)
+                action = ppo.policy.act(state, memory)
+                state, reward, done, _ = env.step(action)
+                i_reward += reward
+                if render:
+                    env.render()
+                if save_gif:
+                    img = env.render(mode='rgb_array')
+                    img = Image.fromarray(img)
+                    img.save('./gif/{}.jpg'.format(t))
+                if done:
+                    break
+            print('i_episode :{} reward={}'.format(i_episode, i_reward))
 
 
 if __name__ == '__main__':

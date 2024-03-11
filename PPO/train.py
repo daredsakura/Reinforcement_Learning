@@ -1,9 +1,8 @@
 import gym
-import torch.nn as nn
-import torch
-from torch.distributions import Categorical
-import Box2D
 import numpy as np
+import torch
+import torch.nn as nn
+from torch.distributions import Categorical
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -19,6 +18,10 @@ class Memory:
 
     def clear_memory(self):
         del self.actions[:]
+        del self.rewards[:]
+        del self.states[:]
+        del self.logprobs[:]
+        del self.is_terminals[:]
 
 
 class ActorCritic(nn.Module):
@@ -30,7 +33,7 @@ class ActorCritic(nn.Module):
             nn.Linear(n_latent_var, n_latent_var),
             nn.Tanh(),
             nn.Linear(n_latent_var, action_dim),
-            nn.Softmax()
+            nn.Softmax(dim=-1)
         )
         self.reward_layer = nn.Sequential(
             nn.Linear(state_dim, n_latent_var),
@@ -44,7 +47,7 @@ class ActorCritic(nn.Module):
         raise NotImplementedError
 
     def act(self, state, memory):
-        state = torch.from_numpy(state).to(device)
+        state = state.to(device)
         action_probs = self.actor_layer(state)
         dist = Categorical(action_probs)  # 按照给定的概率分布来进行采样
         action = dist.sample()
@@ -75,13 +78,13 @@ class PPO:
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr, betas=self.betas)
         self.policy_old = ActorCritic(state_dim, action_dim, n_latent_var).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        self.MseLoss = nn.MSELoss()
+        self.MseLoss = nn.MSELoss().to(device)
 
     def update(self, memory):
         # Monte Carlo estimate of state rewards:
         rewards = []
         discounted_reward = 0
-        for reward, is_terminal in zip(memory.rewards, memory.is_terminals):
+        for reward, is_terminal in zip(reversed(memory.rewards), reversed(memory.is_terminals)):
             if is_terminal:
                 discounted_reward = 0
             # 每一步得分衰减
@@ -123,10 +126,10 @@ def main():
     state_dim = env.observation_space.shape[0]
     # action共4个
     action_dim = 4
-    render = True  # if show the game's view
+    render = False  # if show the game's view
     solved_reward = 230  # stop training if avg_reward > solved_reward
     log_interval = 20  # print avg reward in the interval
-    max_episodes = 50000  # max training episodes
+    max_episodes = 10000  # max training episodes
     max_timesteps = 300  # max timesteps in one episode
     n_latent_var = 64  # number of variables in hidden layer
     update_timestep = 2000  # update policy every n timesteps
@@ -154,6 +157,7 @@ def main():
         for t in range(max_timesteps):
             timestep += 1
             # Running policy_old
+            state = torch.tensor(state).to(device)
             action = ppo.policy_old.act(state, memory)
             state, reward, done, _ = env.step(action)  # 得到（新的状态，奖励，是否终止，额外的调试信息）
             # Saving reward and is_terminal:
@@ -168,8 +172,8 @@ def main():
             if render:
                 env.render()
             if done:
-                avg_length += t
                 break
+        avg_length += t
         # stop training if avg_reward > solved_reward
         # print(log_interval * solved_reward)
         if running_reward > (log_interval * solved_reward):
@@ -180,9 +184,10 @@ def main():
         if i_episode % log_interval == 0:
             avg_length = int(avg_length / log_interval)
             running_reward = int((running_reward / log_interval))
-            print('Episode {}\t avg_length={}\t reward={}'.format(i_episode, avg_length, running_reward))
+            print('Episode {}\t avg_length={}\t running_reward={}'.format(i_episode, avg_length, running_reward))
             running_reward = 0
             avg_length = 0
+    env.close()
 
 
 if __name__ == '__main__':
