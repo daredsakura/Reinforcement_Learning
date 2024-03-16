@@ -48,7 +48,10 @@ class ActorCritic(nn.Module):
 
     def act(self, state, memory):
         state = state.to(device)
+        # print(state)
+        # print(state.shape)
         action_probs = self.actor_layer(state)
+
         dist = Categorical(action_probs)  # 按照给定的概率分布来进行采样
         action = dist.sample()
         memory.actions.append(action)
