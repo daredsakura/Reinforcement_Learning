@@ -1,4 +1,5 @@
 import random
+from collections import deque
 
 import torch
 import torch.nn as nn
@@ -29,15 +30,9 @@ class Net(nn.Module):
 
 class ReplayBuffer:
     def __init__(self, MEMORY_CAPACITY):
-        self.capacity = MEMORY_CAPACITY
-        self.buffer = []
-
-    def clear_buffer(self):
-        del self.buffer[:]
+        self.buffer = deque(maxlen=MEMORY_CAPACITY)
 
     def add(self, state, action, reward, state_, done):
-        if len(self.buffer) == self.capacity:
-            del self.buffer[0]
         self.buffer.append((state, action, reward, state_, done))
 
     def __len__(self):
@@ -58,6 +53,8 @@ class DQN:
         self.learn_count = 0
         self.lr = LR
         self.epsilon = EPSILON
+        self.epsilon_decay = 0.999
+        self.epsilon_final = 0.01
         self.gamma = GAMMA
         self.action_dim = ACTION_DIM
         self.batch_size = BATCH_SIZE
@@ -67,15 +64,16 @@ class DQN:
 
     def choose_action(self, state):
         state = torch.FloatTensor(state).to(device)
-        if np.random.randn() <= self.epsilon:
+        if np.random.random() <= self.epsilon:
+            action = np.random.choice(self.action_dim)
+        else:
             actions = self.eval_net(state)
             action = actions.argmax().item()
-        else:
-            action = np.random.randint(0, self.action_dim)
         return action
 
     def learn(self, replay_buffer):
-        # print(1)
+        if self.learn_count % self.target_update_step == 0:
+            self.target_net.load_state_dict(self.eval_net.state_dict())
         state, action, reward, state_, done = replay_buffer.sample(self.batch_size)
         state = torch.FloatTensor(state).to(device)
         action = torch.tensor(action).view(-1, 1).to(device)
@@ -89,9 +87,8 @@ class DQN:
         self.optimizer.zero_grad()
         losses.backward()
         self.optimizer.step()
+        self.epsilon = self.epsilon * self.epsilon_decay if self.epsilon > self.epsilon_final else self.epsilon_final
         self.learn_count += 1
-        if self.learn_count % self.target_update_step == 0:
-            self.target_net.load_state_dict(self.eval_net.state_dict())
 
     # def plot(self, step_count_ls):
 
@@ -102,11 +99,11 @@ def main():
     MAX_EPISODE = 10000
     GAMMA = 0.99  # discount factor
     LR = 0.001  # learning rate
-    EPSILON = 0.9
-    MEMORY_CAPACITY = 10000
+    EPSILON = 1
+    MEMORY_CAPACITY = 100000
     BATCH_SIZE = 64
-    HIDDEN_LAYERS = 30
-    TARGET_UPDATE_STEPS = 20
+    HIDDEN_LAYERS = 256
+    TARGET_UPDATE_STEPS = 50
     env = gym.make(env_name)
     STATE_DIM = env.observation_space.shape[0]
     ACTION_DIM = env.action_space.n
@@ -116,19 +113,28 @@ def main():
     replay_buffer = ReplayBuffer(MEMORY_CAPACITY)
     step_counter_ls = []
     sum_step_count = 0
+    score = 0.0
     for i_episode in range(1, MAX_EPISODE, 1):
         state = env.reset()
-        # sum_reward = 0
         step_count = 0
         while True:
             step_count += 1
             sum_step_count += 1
             action = dqn.choose_action(state)
-            # print(action)
             state_, reward, done, _ = env.step(action)
-            reward = reward * 100 if reward > 0 else reward * 5  # 放大，便于观察
+            # reward = state_[0] + 0.5
+            # print(state_[0])
+            # if state_[0] <= -0.5:
+            #     reward = 100 * abs(state_[1])
+            # print('速度：', state_[1])
+            # elif -0.5 < state_[0] < 0.5:
+            #     reward = pow(2, 5 * (state_[0] + 1)) + (100 * abs(state_[1])) ** 2
+            if state_[0] >= 0.5:
+                reward = 1000
+            # print(reward)
+            score += reward
             replay_buffer.add(state, action, reward, state_, done)
-            if len(replay_buffer) >= MEMORY_CAPACITY:
+            if len(replay_buffer) >= BATCH_SIZE:
                 dqn.learn(replay_buffer)
             if RENDER:
                 env.render()
@@ -136,12 +142,16 @@ def main():
                 step_counter_ls.append(step_count)
                 if len(step_counter_ls) % 20 == 0:
                     sum_step_count /= 20
-                    print('Episode={} ,step_count={}, '.format(i_episode, sum_step_count))
+                    score /= 20
+                    print('Episode={} ,step_count={}, score={}'.format(i_episode, sum_step_count, score))
                     sum_step_count = 0
+                    score = 0
                 break
             state = state_
-    model_path = "./DQN_" + env_name + ".pth"
-    torch.save(dqn.target_net.state_dict(),model_path)
+        if np.mean(step_counter_ls[-100:]) <= 110 and step_counter_ls[-1] <= 110:
+            model_path = "./DQN_" + env_name + ".pth"
+            torch.save(dqn.eval_net.state_dict(), model_path)
+            break
 
 
 if __name__ == '__main__':

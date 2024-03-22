@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main():
     env_name = 'MountainCar-v0'
-    model_path = "./DQN_" + env_name + ".pth"
+    model_path = "./DQN_" + env_name + "-v1.pth"
     RENDER = True
     env = gym.make(env_name)
     STATE_DIM = env.observation_space.shape[0]
@@ -23,19 +23,19 @@ def main():
     N_EPISODE = 10
     GAMMA = 0.99  # discount factor
     LR = 0.001  # learning rate
-    EPSILON = 0.9
-    MEMORY_CAPACITY = 10000
+    EPSILON = 1
+    MEMORY_CAPACITY = 100000
     BATCH_SIZE = 64
-    HIDDEN_LAYERS = 30
-    TARGET_UPDATE_STEPS = 20
+    HIDDEN_LAYERS = 256
+    TARGET_UPDATE_STEPS = 100
     dqn = DQN(GAMMA, LR, EPSILON, ACTION_DIM, STATE_DIM, HIDDEN_LAYERS, BATCH_SIZE, TARGET_UPDATE_STEPS)
     dqn.eval_net.load_state_dict(torch.load(model_path), strict=False)
     for i_episode in range(N_EPISODE):
         state = env.reset()
         step = 0
         while True:
-            # state = torch.FloatTensor(state).to(device)
-            action = dqn.choose_action(state)
+            state = torch.FloatTensor(state).to(device)
+            action = dqn.eval_net(state).argmax().item()
             step += 1
             state_, reward, done, _ = env.step(action)
             if RENDER:
