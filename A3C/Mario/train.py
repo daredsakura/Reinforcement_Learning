@@ -46,16 +46,6 @@ def main(args):
     env_name = "SuperMarioBros-v0"
     env = gym_super_mario_bros.make(env_name)
 
-    # print(env.observation_space)
-    # env = JoypadSpace(env, SIMPLE_MOVEMENT)
-
-    # done = True
-    # for step in range(5000):
-    #     state = env.reset()
-    #     print(state.shape)
-    #     state, reward, done, info = env.step(env.action_space.sample())
-    #     env.render()
-    # env.close()
 
 
 if __name__ == '__main__':
