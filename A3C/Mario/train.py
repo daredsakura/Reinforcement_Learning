@@ -1,19 +1,14 @@
-from nes_py.wrappers import JoypadSpace
-import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT, COMPLEX_MOVEMENT, RIGHT_ONLY
 import argparse
 import os
-
-os.environ['OMP_NUM_THREADS'] = '1'
 import torch
-# from src.env import create_train_env
-# from src.model import ActorCritic
-# from src.optimizer import GlobalAdam
-# from src.process import local_train, local_test
-import torch.multiprocessing as _mp
+from src.env import create_train_env
+from src.model import ActorCritic
+from src.optimizer import GlobalAdam
+from src.process import train
+import torch.multiprocessing as _mp  # pytorch 多进程
 import shutil
 
-device = torch.device("cuda:0")
+os.environ['OMP_NUM_THREADS'] = '1'
 
 
 # 对世界关卡和训练超参数通过命令行设置
@@ -42,13 +37,32 @@ def get_args():
     return args
 
 
-def main(args):
-    env_name = "SuperMarioBros-v0"
-    env = gym_super_mario_bros.make(env_name)
-
+def main(opt):
+    device = torch.device("cuda:0" if opt.use_gpu else "cpu")
+    torch.manual_seed(123)
+    if os.path.isdir(opt.log_path):
+        shutil.rmtree(opt.log_path)
+    os.makedirs(opt.log_path)
+    if not os.path.isdir(opt.saved_path):
+        os.makedirs(opt.saved_path)
+    # 在使用spawn方式启动子进程时，父进程将会在一个全新的Python解释器中启动子进程
+    mp = _mp.get_context('spawn')
+    env, num_states, num_actions = create_train_env(opt.world, opt.stage, opt.action_type)
+    global_model = ActorCritic(num_states, num_actions).to(device)
+    global_model.share_memory()
+    optimizer = GlobalAdam(global_model.parameters(), lr=opt.lr)
+    processes = []
+    for index in range(opt.num_processes):
+        if index == 0:
+            process = mp.Process(target=train, args=(index, opt, global_model, optimizer, True))
+        else:
+            process = mp.Process(target=train, args=(index, opt, global_model, optimizer))
+        process.start()
+        processes.append(process)
+    for process in processes:
+        process.join()
 
 
 if __name__ == '__main__':
     opt = get_args()
-    # print(opt.lr)
     main(opt)
