@@ -19,7 +19,6 @@ class ActorCritic(nn.Module):
         for module in self.modules():
             if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
-                # nn.init.kaiming_uniform_(module.weight)
                 nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.LSTMCell):
                 nn.init.constant_(module.bias_ih, 0)
@@ -30,5 +29,6 @@ class ActorCritic(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
+        # print(x.size(0))
         hx, cx = self.lstm(x.view(x.size(0), -1), (hx, cx))
         return self.actor_layer(hx), self.critic_layer(cx), hx, cx

@@ -11,9 +11,9 @@ import subprocess as sp
 
 class Monitor:  # 监视器类，用于记录图像数据并保存为视频文件
     def __init__(self, width, height, saved_path):
-
         self.command = ["ffmpeg", "-y", "-f", "rawvideo", "-vcodec", "rawvideo", "-s", "{}X{}".format(width, height),
                         "-pix_fmt", "rgb24", "-r", "80", "-i", "-", "-an", "-vcodec", "mpeg4", saved_path]
+        # self.pipe = sp.Popen(self.command, stdin=sp.PIPE, stderr=sp.PIPE)
         try:
             self.pipe = sp.Popen(self.command, stdin=sp.PIPE, stderr=sp.PIPE)
         except FileNotFoundError:
@@ -80,19 +80,20 @@ class CustomSkipFrame(Wrapper):
                 states.append(state_)
             else:
                 states.append(state_)
-        states = np.concatenate(states, axis=0, dtype=float)[None, :, :, :]  # 将多个四维数组连接成一个更大的四维数组
+        states = np.concatenate(states, axis=0, dtype=np.float32)[None, :, :, :]  # 将多个四维数组连接成一个更大的四维数组
         return states, total_rewards, done, info
 
     def reset(self):
         state = self.env.reset()
-        states = np.concatenate([state for _ in range(self.skip)], axis=0, dtype=float)  # 将1个数组重复连接成一个更大的四维数组
+        states = np.concatenate([state for _ in range(self.skip)], axis=0, dtype=np.float32)[None, :, :, :]
+        # 将1个数组重复连接成一个更大的四维数组
         return states
 
 
 def create_train_env(world, stage, action_type, output_path=None):
     env_name = "SuperMarioBros-{}-{}-v0".format(world, stage)
     env = gym_super_mario_bros.make(env_name)
-    if output_path is not None:
+    if output_path:
         monitor = Monitor(256, 240, output_path)
     else:
         monitor = None
@@ -103,6 +104,6 @@ def create_train_env(world, stage, action_type, output_path=None):
     else:
         actions = COMPLEX_MOVEMENT
     env = JoypadSpace(env, actions)
-    env = CustomReward(env, monitor)
+    env = CustomReward(env, None)
     env = CustomSkipFrame(env)
     return env, env.observation_space.shape[0], len(actions)
