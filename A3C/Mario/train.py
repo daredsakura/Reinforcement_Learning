@@ -28,7 +28,7 @@ def get_args():
     parser.add_argument("--num_processes", type=int, default=3)
     parser.add_argument("--save_interval", type=int, default=500, help="Number of steps between savings")
     parser.add_argument("--max_actions", type=int, default=200, help="Maximum repetition steps in test phase")
-    parser.add_argument("--log_path", type=str, default="tensorboard/a3c_super_mario_bros")
+    parser.add_argument("--log_path", type=str, default="tensorboard/dqn_flappy_bird")
     parser.add_argument("--saved_path", type=str, default="trained_models")
     parser.add_argument("--load_from_previous_stage", type=bool, default=False,
                         help="Load weight from previous trained stage")

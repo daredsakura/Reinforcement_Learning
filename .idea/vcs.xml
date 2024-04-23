@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/DQN/DQN-mario-xiaoyao" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/DQN/flappy_bird/PyGame-Learning-Environment" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/DQN/flappy_bird/flappy-bird-gym" vcs="Git" />
   </component>
 </project>

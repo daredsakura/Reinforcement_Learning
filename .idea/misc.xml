@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" project-jdk-name="sakura (2)" project-jdk-type="Python SDK" />
+  <component name="Black">
+    <option name="sdkName" value="Remote Python 3.11.8 (sftp://root@i-1.gpushare.com:21322/usr/local/bin/python3)" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="sakuracopic" project-jdk-type="Python SDK" />
+  <component name="PyPackaging">
+    <option name="earlyReleasesAsUpgrades" value="true" />
+  </component>
 </project>

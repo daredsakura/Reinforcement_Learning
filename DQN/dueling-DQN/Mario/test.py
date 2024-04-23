@@ -1,63 +1,67 @@
 import os
-
-os.environ['OMP_NUM_THREADS'] = '1'
 import argparse
+import time
+
+import gym_super_mario_bros
 import torch
-from src.env import create_train_env
-from src.model import ActorCritic
+from src.env import create_env
 import torch.nn.functional as F
+from train import DQN
 
 
+# 对世界关卡和训练超参数通过命令行设置
 def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of model described in the paper: Asynchronous Methods for Deep Reinforcement Learning for 
         Super Mario Bros""")
     parser.add_argument("--world", type=int, default=1)
     parser.add_argument("--stage", type=int, default=1)
-    parser.add_argument("--action_type", type=str, default="complex")
+    parser.add_argument("--action_type", type=str, default="right")
+    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--gamma", type=float, default=0.9, help='discount factor for rewards')
+    parser.add_argument('--alpha', type=float, default=0.6, help='alpha for PER')
+    parser.add_argument('--beta_init', type=float, default=0.4, help='beta for PER')
+    parser.add_argument('--beta_gain_steps', type=int, default=int(3e5), help='steps of beta from beta_init to 1.0')
+    parser.add_argument('--epsilon', type=float, default=1.0, help='exploration rate')
+    parser.add_argument('--max_episodes', type=int, default=50000, help='max_episodes')
+    parser.add_argument('--target_update_steps', type=int, default=200, help='target_net update steps')
+    parser.add_argument('--memory_capacity', type=int, default=18000, help='ReplayBuffer size')
+    parser.add_argument('--render', type=bool, default=True, help='is Render')
+    parser.add_argument('--batch_size', type=int, default=64, help='batch_size of ReplayBuffer')
+    parser.add_argument("--save_interval", type=int, default=10000, help="Number of steps between savings")
+    parser.add_argument("--max_actions", type=int, default=200, help="Maximum repetition steps in test phase")
+    parser.add_argument("--log_path", type=str, default="tensorboard/dqn_super_mario_bros")
     parser.add_argument("--saved_path", type=str, default="trained_models")
-    parser.add_argument("--output_path", type=str, default="output")
+    parser.add_argument("--load_from_previous_stage", type=bool, default=False,
+                        help="Load weight from previous trained stage")
+    parser.add_argument("--use_gpu", type=bool, default=True)
     args = parser.parse_args()
     return args
 
 
 def test(opt):
-    torch.manual_seed(123)
-    env, num_states, num_actions = create_train_env(opt.world, opt.stage, opt.action_type,
-                                                    "{}/video_{}_{}.mp4".format(opt.output_path, opt.world, opt.stage))
-    model = ActorCritic(num_states, num_actions)
-    device = torch.device("cuda:0")
-    model.load_state_dict(
-        torch.load("{}/a3c_super_mario_bros_{}_{}".format(opt.saved_path, opt.world, opt.stage)))
-    model=model.to(device)
-    model.eval()
-    state = torch.from_numpy(env.reset())
-    done = True
-    h_0 = torch.zeros((1, 512), dtype=torch.float).to(device)
-    c_0 = torch.zeros((1, 512), dtype=torch.float).to(device)
+    # writer = SummaryWriter(opt.log_path)
+    env, num_states, num_actions = create_env(opt.world, opt.stage, opt.action_type)
+    dqn = DQN(opt.gamma, opt.lr, opt.epsilon, num_actions, num_states, opt.batch_size, opt.target_update_steps)
+    dqn.eval_net.load_state_dict(torch.load(r".\trained_models\Double_Dueling_DQN_Mario_v0_1_1_best_x_pos.pth"),
+                                 strict=False)
+    device = torch.device('cuda:0')
+    state = env.reset()
+    step = 0
     while True:
-        # if done:
-        #     h_0 = torch.zeros((1, 512), dtype=torch.float)
-        #     c_0 = torch.zeros((1, 512), dtype=torch.float)
-        #     env.reset()
-        # else:
-        #     h_0 = h_0.detach()
-        #     c_0 = c_0.detach()
-        # if torch.cuda.is_available():
-        #     h_0 = h_0.cuda()
-        #     c_0 = c_0.cuda()
-        #     state = state.cuda()
-        state = state.to(device)
-        logits, value, h_0, c_0 = model(state, h_0, c_0)
-        policy = F.softmax(logits, dim=1)
-        action = torch.argmax(policy).item()
-        action = int(action)
-        state, reward, done, info = env.step(action)
-        state = torch.from_numpy(state)
-        env.render()
-        if info["flag_get"]:
-            print("World {} stage {} completed".format(opt.world, opt.stage))
+        step += 1
+        state = torch.FloatTensor(state).to(device)
+        # state
+        action = dqn.eval_net(state).argmax().item()
+        state_, reward, done, info = env.step(action)
+        print(reward)
+        if opt.render:
+            env.render()
+        if done:
             break
+        state = state_
+        time.sleep(0.002)
+    print(step)
 
 
 if __name__ == "__main__":

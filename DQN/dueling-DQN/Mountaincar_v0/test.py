@@ -14,21 +14,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main():
     env_name = 'MountainCar-v0'
-    model_path = "./Dueling_DQN_" + env_name + ".pth"
+    model_path = "./Double_DQN_" + env_name + ".pth"
     RENDER = True
     env = gym.make(env_name)
     STATE_DIM = env.observation_space.shape[0]
     ACTION_DIM = env.action_space.n
     N_EPISODE = 10
     GAMMA = 0.99  # discount factor
-    LR = 0.0001  # learning rate
+    LR = 0.01  # learning rate
     EPSILON = 1
     MEMORY_CAPACITY = 100000
     BATCH_SIZE = 64
-    HIDDEN_LAYERS = 256
-    TARGET_UPDATE_STEPS = 100
+    HIDDEN_LAYERS = 30
+    TARGET_UPDATE_STEPS = 1000
     dqn = DQN(GAMMA, LR, EPSILON, ACTION_DIM, STATE_DIM, HIDDEN_LAYERS, BATCH_SIZE, TARGET_UPDATE_STEPS)
     dqn.eval_net.load_state_dict(torch.load(model_path), strict=False)
+    dqn.eval_net.eval()
     for i_episode in range(N_EPISODE):
         state = env.reset()
         step = 0

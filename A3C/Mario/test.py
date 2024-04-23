@@ -1,6 +1,6 @@
 import os
 
-os.environ['OMP_NUM_THREADS'] = '1'
+# os.environ['OMP_NUM_THREADS'] = '1'
 import argparse
 import torch
 from src.env import create_train_env
@@ -29,7 +29,7 @@ def test(opt):
     device = torch.device("cuda:0")
     model.load_state_dict(
         torch.load("{}/a3c_super_mario_bros_{}_{}".format(opt.saved_path, opt.world, opt.stage)))
-    model=model.to(device)
+    model = model.to(device)
     model.eval()
     state = torch.from_numpy(env.reset())
     done = True
@@ -55,6 +55,7 @@ def test(opt):
         state, reward, done, info = env.step(action)
         state = torch.from_numpy(state)
         env.render()
+        print(info['x_pos'])
         if info["flag_get"]:
             print("World {} stage {} completed".format(opt.world, opt.stage))
             break
